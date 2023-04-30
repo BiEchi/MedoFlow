@@ -389,108 +389,149 @@ ctx = tvm.device(tgt, 0)
     
 #     np.testing.assert_allclose(flatten_backward(dout, x), arr_dx.asnumpy(), rtol=1e-5)
 
-def np_conv2d_naive(x, w, padding=0, stride=1):
-    out = None
+# def np_conv2d_naive(x, w, padding=0, stride=1):
+#     out = None
     
-    assert padding == 0, "padding is not supported yet"
-    assert stride == 1, "stride can only be 1 for now"
+#     assert padding == 0, "padding is not supported yet"
+#     assert stride == 1, "stride can only be 1 for now"
     
-    N, C, H, W = x.shape
-    M, _, R, S = w.shape
-    HO = int(1 + (H + 2*padding - R) / stride)
-    WO = int(1 + (W + 2*padding - S) / stride)
+#     N, C, H, W = x.shape
+#     M, _, R, S = w.shape
+#     HO = int(1 + (H + 2*padding - R) / stride)
+#     WO = int(1 + (W + 2*padding - S) / stride)
     
-    out = np.zeros((N, M, HO, WO))
+#     out = np.zeros((N, M, HO, WO))
 
-    for n in range(N):       
-        for m in range(M):   
-            for i in range(HO):
-                for j in range(WO):
-                    for r in range(R): 
-                        for s in range(S):
-                            for c in range(C): 
-                                out[n,m,i,j] += x[n, c, stride*i+r, stride*j+s] * w[m, c, r, s]
+#     for n in range(N):       
+#         for m in range(M):   
+#             for i in range(HO):
+#                 for j in range(WO):
+#                     for r in range(R): 
+#                         for s in range(S):
+#                             for c in range(C): 
+#                                 out[n,m,i,j] += x[n, c, stride*i+r, stride*j+s] * w[m, c, r, s]
     
-    return out
+#     return out
 
 
-# im2col and np_conv2d are helper functions
-def im2col(X, filter_H, filter_W, padding, stride):
-    N, C, H, W = X.shape
-    # make all the inputs integers
-    N, C, H, W, filter_H, filter_W, padding, stride = \
-        int(N), int(C), int(H), int(W), int(filter_H), int(filter_W), int(padding), int(stride)
-    assert (H + 2 * padding - filter_H) % stride == 0
-    assert (W + 2 * padding - filter_W) % stride == 0
-    out_H = (H + 2 * padding - filter_H) // stride + 1
-    out_W = (W + 2 * padding - filter_W) // stride + 1
+# # im2col and np_conv2d are helper functions
+# def im2col(X, filter_H, filter_W, padding, stride):
+#     N, C, H, W = X.shape
+#     # make all the inputs integers
+#     N, C, H, W, filter_H, filter_W, padding, stride = \
+#         int(N), int(C), int(H), int(W), int(filter_H), int(filter_W), int(padding), int(stride)
+#     assert (H + 2 * padding - filter_H) % stride == 0
+#     assert (W + 2 * padding - filter_W) % stride == 0
+#     out_H = (H + 2 * padding - filter_H) // stride + 1
+#     out_W = (W + 2 * padding - filter_W) // stride + 1
 
-    y_row_size = C * filter_H * filter_W
-    y_col_size = out_H * out_W
-    y_shape = (N, y_row_size, y_col_size)
-    Y = np.empty(y_shape, dtype = X.dtype)
+#     y_row_size = C * filter_H * filter_W
+#     y_col_size = out_H * out_W
+#     y_shape = (N, y_row_size, y_col_size)
+#     Y = np.empty(y_shape, dtype = X.dtype)
 
-    for batch_index in range(N):
-        for col_index in range(y_col_size):
-            out_y = int(col_index / out_W)
-            out_x = int(col_index % out_W)
-            in_y = int(out_y * stride - padding)
-            in_x = int(out_x * stride - padding)
-            row_idx = 0
-            for c in range(0, C):
-                for y in range(in_y, in_y + filter_H):
-                    for x in range(in_x, in_x + filter_W):
-                        if (x < 0 or x >= W or y < 0 or y >= H):
-                            Y[batch_index, row_idx, col_index] = 0
-                        else:
-                            Y[batch_index, row_idx, col_index] = X[batch_index, c, y, x]
-                            row_idx += 1
-    return Y
+#     for batch_index in range(N):
+#         for col_index in range(y_col_size):
+#             out_y = int(col_index / out_W)
+#             out_x = int(col_index % out_W)
+#             in_y = int(out_y * stride - padding)
+#             in_x = int(out_x * stride - padding)
+#             row_idx = 0
+#             for c in range(0, C):
+#                 for y in range(in_y, in_y + filter_H):
+#                     for x in range(in_x, in_x + filter_W):
+#                         if (x < 0 or x >= W or y < 0 or y >= H):
+#                             Y[batch_index, row_idx, col_index] = 0
+#                         else:
+#                             Y[batch_index, row_idx, col_index] = X[batch_index, c, y, x]
+#                             row_idx += 1
+#     return Y
 
-def np_conv2d(X, Filter, padding=0, stride=1):
-    """Implement a conv2d as a matrix multiply after im2col."""
-    filter_outChannel, filter_inChannel, filter_H, filter_W = Filter.shape
-    N, C, H, W = X.shape
-    assert (H + 2 * padding - filter_H) % stride == 0
-    assert (W + 2 * padding - filter_W) % stride == 0
-    out_H = (H + 2 * padding - filter_H) // stride + 1
-    out_W = (W + 2 * padding - filter_W) // stride + 1
+# def np_conv2d(X, Filter, padding=0, stride=1):
+#     """Implement a conv2d as a matrix multiply after im2col."""
+#     filter_outChannel, filter_inChannel, filter_H, filter_W = Filter.shape
+#     N, C, H, W = X.shape
+#     assert (H + 2 * padding - filter_H) % stride == 0
+#     assert (W + 2 * padding - filter_W) % stride == 0
+#     out_H = (H + 2 * padding - filter_H) // stride + 1
+#     out_W = (W + 2 * padding - filter_W) // stride + 1
 
-    im2col_matrix = im2col(X, filter_H, filter_W, padding, stride)
-    filter_matrix = Filter.reshape(filter_outChannel, -1)
-    return np.matmul(filter_matrix, im2col_matrix).reshape(N, filter_outChannel, out_H, out_W)
+#     im2col_matrix = im2col(X, filter_H, filter_W, padding, stride)
+#     filter_matrix = Filter.reshape(filter_outChannel, -1)
+#     return np.matmul(filter_matrix, im2col_matrix).reshape(N, filter_outChannel, out_H, out_W)
 
-def test_conv2d():
-    shapeX = (30, 30, 48, 48)
-    shapeF = (10, 30, 8, 8)
-    shapeY = (30, 10, 41, 41)
-    x = np.random.uniform(0, 10, size=shapeX).astype(dtype)
-    f = np.random.uniform(0, 10, size=shapeF).astype(dtype)
-    y = np.zeros(shapeY).astype(dtype)
-    arr_x = tvm.nd.array(x)
-    arr_f = tvm.nd.array(f)
-    arr_y = tvm.nd.array(y)
+# def test_conv2d():
+#     shapeX = (30, 30, 48, 48)
+#     shapeF = (10, 30, 8, 8)
+#     shapeY = (shapeX[0], shapeF[0], shapeX[2] - shapeF[2] + 1, shapeX[3] - shapeF[3] + 1)
+#     x = np.random.uniform(0, 10, size=shapeX).astype(dtype)
+#     f = np.random.uniform(0, 10, size=shapeF).astype(dtype)
+#     y = np.zeros(shapeY).astype(dtype)
+#     arr_x = tvm.nd.array(x)
+#     arr_f = tvm.nd.array(f)
+#     arr_y = tvm.nd.array(y)
 
-    start = time()
-    conv2d = tvm_op.make_conv2d(shapeX, shapeF, tgt, tgt_host, "conv2d")
-    conv2d(arr_x, arr_f, arr_y)
-    tvm_taken = time() - start
-    y = arr_y.asnumpy()
+#     # start = time()
+#     conv2d = tvm_op.make_conv2d(shapeX, shapeF, tgt, tgt_host, "conv2d")
+#     # conv2d(arr_x, arr_f, arr_y)
+#     # tvm_taken = time() - start
+#     # y = arr_y.asnumpy()
     
-    start = time()
-    y_np_naive = np_conv2d_naive(x, f)
-    np_naive_taken = time() - start
-    np.testing.assert_allclose(y_np_naive, y, rtol=1e-5)
+#     # start = time()
+#     # y_np_naive = np_conv2d_naive(x, f)
+#     # np_naive_taken = time() - start
+#     # np.testing.assert_allclose(y_np_naive, y, rtol=1e-5)
     
-    start = time()
-    y_np_im2col = np_conv2d(x, f)
-    np_im2col_taken = time() - start
-    np.testing.assert_allclose(y_np_im2col, y, rtol=1e-5)
+#     # start = time()
+#     # y_np_im2col = np_conv2d(x, f)
+#     # np_im2col_taken = time() - start
+#     # np.testing.assert_allclose(y_np_im2col, y, rtol=1e-5)
     
-    with open("tvm_result.txt", "w") as f:
-        f.write("Numpy Naive Taken time" + str(round(np_naive_taken, 2)) + "\n")
-        f.write("Numpy im2col Taken time" + str(round(np_im2col_taken, 2)) + "\n")
-        f.write("TVM Taken time" + str(round(tvm_taken, 2)) + "\n")
+#     with open("exp/tvm_result.txt", "w") as f:
+#         # f.write("Numpy Naive Taken time" + str(round(np_naive_taken, 2)) + "\n")
+#         # f.write("Numpy im2col Taken time" + str(round(np_im2col_taken, 2)) + "\n")
+#         # f.write("TVM Taken time: " + str(round(tvm_taken, 2)) + "\n")
+#         dev = tvm.cpu(0)
+#         f.write("TVM Evaluator time: " + str(round(conv2d.time_evaluator(conv2d.entry_name, dev, number=100)(arr_x, arr_f, arr_y).mean, 2)) + "\n")
+
+# def test_conv2d_gpu():
+#     dev = tvm.cuda(0)
+#     shapeX = (30, 30, 100, 100)
+#     shapeF = (10, 30, 8, 8)
+#     shapeY = (shapeX[0], shapeF[0], shapeX[2] - shapeF[2] + 1, shapeX[3] - shapeF[3] + 1)
+    
+#     # X: [M, C, H, W] -> [H, W, C, M]
+#     # F: [N, C, R, S] -> [R, S, C, N]
+#     shapeX = shapeX[2], shapeX[3], shapeX[1], shapeX[0]
+#     shapeF = shapeF[2], shapeF[3], shapeF[1], shapeF[0]
+#     shapeY = shapeY[2], shapeY[3], shapeY[1], shapeY[0]
+#     x = np.random.uniform(0, 10, size=shapeX).astype(dtype)
+#     f = np.random.uniform(0, 10, size=shapeF).astype(dtype)
+#     y = np.zeros(shapeY).astype(dtype)
+#     arr_x = tvm.nd.array(x, dev)
+#     arr_f = tvm.nd.array(f, dev)
+#     arr_y = tvm.nd.array(y, dev)
+
+#     start = time()
+#     conv2d = tvm_op.make_conv2d_gpu(shapeX, shapeF, tgt, tgt_host, "conv2d")
+#     conv2d(arr_x, arr_f, arr_y)
+#     tvm_taken = time() - start
+#     y = arr_y.asnumpy()
+    
+#     x = np.transpose(x, (3, 2, 0, 1))
+#     f = np.transpose(f, (3, 2, 0, 1))
+#     y = np.transpose(y, (3, 2, 0, 1))
+    
+#     start = time()
+#     # y_np_im2col = np_conv2d(x, f)
+#     np_im2col_taken = time() - start
+    
+#     # np.testing.assert_allclose(y_np_im2col, y, rtol=1e-5)
+    
+#     with open("tvm_result.txt", "w") as f:
+#         # f.write("Numpy Naive Taken time" + str(round(np_im2col_taken, 2)) + "\n")
+#         f.write("TVM GPU Taken time: " + str(round(tvm_taken, 2)) + "\n")
+#         f.write("TVM GPU Evaluator time: " + str(round(conv2d.time_evaluator(conv2d.entry_name, dev, number=1)(arr_x, arr_f, arr_y).mean, 6)) + "\n")
 
 # def np_conv2d_grad(dout, cache):
 #     """
@@ -635,19 +676,25 @@ def test_conv2d():
 #     y = arr_y.asnumpy()
 #     np.testing.assert_allclose(autodiff.softmax_func(x), y, rtol=1e-5)
 
-# def test_softmax_cross_entropy():
-#     shape = (400, 1000)
-#     y = np.random.uniform(-5, 5, shape).astype(dtype)
-#     y_ = np.random.uniform(-5, 5, shape).astype(dtype)
-#     out = np.zeros((1,)).astype(dtype)
-#     arr_y = tvm.nd.array(y)
-#     arr_y_ = tvm.nd.array(y_)
-#     arr_out = tvm.nd.array(out)
-#     matrix_softmax_cross_entropy = tvm_op.make_matrix_softmax_cross_entropy(shape, tgt, tgt_host, "softmax_cross_entropy")
-#     matrix_softmax_cross_entropy(arr_y, arr_y_, arr_out)
-#     out = arr_out.asnumpy()
-#     # numpy calculation
-#     cross_entropy = np.mean(
-#         -np.sum(y_ * np.log(autodiff.softmax_func(y)), axis=1), keepdims=True)
-#     np.testing.assert_allclose(cross_entropy, out, rtol=1e-5)
+def test_softmax_cross_entropy():
+    shape = (400, 1000)
+    y = np.random.uniform(-5, 5, shape).astype(dtype)
+    y_ = np.random.uniform(-5, 5, shape).astype(dtype)
+    out = np.zeros((1,)).astype(dtype)
+    arr_y = tvm.nd.array(y)
+    arr_y_ = tvm.nd.array(y_)
+    arr_out = tvm.nd.array(out)
+    matrix_softmax_cross_entropy = tvm_op.make_matrix_softmax_cross_entropy(shape, tgt, tgt_host, "softmax_cross_entropy")
+    matrix_softmax_cross_entropy(arr_y, arr_y_, arr_out)
+    out = arr_out.asnumpy()
+    
+    # numpy calculation
+    # cross_entropy = np.mean(
+    #     -np.sum(y_ * np.log(autodiff.softmax_func(y)), axis=1), keepdims=True)
+    
+    # torch calculation
+    import torch
+    criterion = torch.nn.CrossEntropyLoss()
+    cross_entropy = criterion(torch.from_numpy(y), torch.from_numpy(y_))
+    np.testing.assert_allclose(cross_entropy, out, rtol=1e-5)
     

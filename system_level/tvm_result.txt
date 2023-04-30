@@ -1,3 +1,0 @@
-Numpy Naive Taken time731.88
-Numpy im2col Taken time38.5
-TVM Taken time1.12
